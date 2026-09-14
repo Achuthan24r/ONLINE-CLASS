@@ -1,0 +1,13 @@
+{
+  "name": "classorbit-workspace",
+  "version": "1.0.0",
+  "description": "ClassOrbit — Secure Admin-Controlled Online Classroom Platform",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test:backend": "npm --prefix backend test",
+    "bootstrap:admin": "npm --prefix backend run bootstrap:admin",
+    "build:frontend": "npm --prefix frontend run build"
+  }
+}
