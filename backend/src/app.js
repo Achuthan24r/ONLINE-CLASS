@@ -69,6 +69,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Ensure database connection for API requests (handles serverless execution & connection reuse)
+const { connectDB } = require('./db');
+app.use(async (req, res, next) => {
+  try {
+    if (env.MONGODB_URI) {
+      await connectDB(env.MONGODB_URI);
+    }
+    next();
+  } catch (err) {
+    next(new AppError('Database connection unavailable. Please check MongoDB Atlas connectivity.', 503, 'DB_UNAVAILABLE'));
+  }
+});
+
 // ==========================================
 // 1. Admin Routes (/api/admin/* and /api/auth/*)
 // ==========================================

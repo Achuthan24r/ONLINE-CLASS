@@ -9,56 +9,85 @@ try {
   // Ignore if not permitted
 }
 
-let isConnecting = false;
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
-async function connectDB(uri, maxRetries = 5, retryDelayMs = 3000) {
+async function connectDB(uri, maxRetries = 5, retryDelayMs = 2000) {
   if (!uri) {
     throw new Error('MONGODB_URI is required for database connection.');
   }
 
-  mongoose.connection.on('connected', () => {
-    console.log('🍃 [MongoDB Atlas] Connected successfully to cluster');
-  });
+  // If already connected, reuse existing connection immediately
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
 
-  mongoose.connection.on('error', (err) => {
-    console.error('❌ [MongoDB Atlas] Connection error:', err.message);
-  });
+  if (cached.conn) {
+    return cached.conn;
+  }
 
-  mongoose.connection.on('disconnected', () => {
-    console.warn('⚠️ [MongoDB Atlas] Connection disconnected');
-  });
-
-  let retries = 0;
-  while (retries < maxRetries) {
-    try {
-      isConnecting = true;
-      await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 8000,
-        connectTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
-        maxPoolSize: 10,
-        minPoolSize: 2,
+  if (!cached.promise) {
+    // Register lifecycle event listeners only once to avoid memory leak warnings
+    if (mongoose.connection.listenerCount('connected') === 0) {
+      mongoose.connection.on('connected', () => {
+        console.log('🍃 [MongoDB Atlas] Connected successfully to cluster');
       });
-      isConnecting = false;
-      return mongoose.connection;
-    } catch (err) {
-      retries++;
-      console.error(`❌ [MongoDB Atlas] Connection attempt ${retries}/${maxRetries} failed: ${err.message}`);
-      if (retries >= maxRetries) {
-        isConnecting = false;
-        throw err;
-      }
-      const backoff = retryDelayMs * Math.pow(1.5, retries - 1);
-      console.log(`⏳ Retrying MongoDB connection in ${Math.round(backoff)}ms...`);
-      await new Promise((res) => setTimeout(res, backoff));
+      mongoose.connection.on('error', (err) => {
+        console.error('❌ [MongoDB Atlas] Connection error:', err.message);
+      });
+      mongoose.connection.on('disconnected', () => {
+        console.warn('⚠️ [MongoDB Atlas] Connection disconnected');
+      });
     }
+
+    cached.promise = (async () => {
+      let retries = 0;
+      while (retries < maxRetries) {
+        try {
+          await mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 8000,
+            connectTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+            maxPoolSize: 10,
+            minPoolSize: 1,
+          });
+          return mongoose.connection;
+        } catch (err) {
+          retries++;
+          console.error(`❌ [MongoDB Atlas] Connection attempt ${retries}/${maxRetries} failed: ${err.message}`);
+          if (retries >= maxRetries) {
+            cached.promise = null;
+            throw err;
+          }
+          const backoff = retryDelayMs * Math.pow(1.5, retries - 1);
+          console.log(`⏳ Retrying MongoDB connection in ${Math.round(backoff)}ms...`);
+          await new Promise((res) => setTimeout(res, backoff));
+        }
+      }
+    })();
+  }
+
+  try {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (err) {
+    cached.promise = null;
+    throw err;
   }
 }
 
 async function closeDB() {
   try {
-    await mongoose.connection.close();
-    console.log('🍃 [MongoDB Atlas] Connection closed gracefully');
+    if (cached) {
+      cached.conn = null;
+      cached.promise = null;
+    }
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+      console.log('🍃 [MongoDB Atlas] Connection closed gracefully');
+    }
   } catch (err) {
     console.error('Error closing MongoDB connection:', err.message);
   }

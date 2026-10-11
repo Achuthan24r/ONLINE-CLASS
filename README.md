@@ -98,8 +98,8 @@ In `backend/.env`:
 PORT=5000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
-MONGODB_URI=mongodb+srv://achuabi2419:achuabi2419@cluster0.7e3kx4p.mongodb.net/classorbit?retryWrites=true&w=majority&appName=Cluster0
-SESSION_SECRET="classorbit-jwt-session-secret-change-in-production-min-32-chars"
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxx.mongodb.net/classorbit?retryWrites=true&w=majority
+SESSION_SECRET="your-secure-jwt-session-secret-min-32-chars"
 CLEANUP_TIMEZONE="Asia/Kolkata"
 STORAGE_WARNING_THRESHOLD_MB=80
 ```

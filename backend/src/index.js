@@ -18,8 +18,8 @@ const PORT = parseInt(env.PORT, 10) || 5000;
 // Initialize default admin in MongoDB upon startup
 async function initDefaultAdmin() {
   try {
-    const defaultUser = 'admin';
-    const defaultPass = 'OrbitAdmin2025!';
+    const defaultUser = process.env.ADMIN_DEFAULT_USERNAME || 'admin';
+    const defaultPass = process.env.ADMIN_DEFAULT_PASSWORD || 'OrbitAdmin2025!';
     const existing = await Admin.findOne({ username: defaultUser });
     if (!existing) {
       const passwordHash = await hashPassword(defaultPass);
@@ -78,3 +78,6 @@ const shutdown = async (signal) => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+module.exports = app;
+module.exports.server = server;
